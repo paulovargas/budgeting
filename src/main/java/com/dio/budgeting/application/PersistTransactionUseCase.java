@@ -4,7 +4,9 @@ import com.dio.budgeting.application.output.TransactionOutput;
 import com.dio.budgeting.domain.Category;
 import com.dio.budgeting.domain.Transaction;
 import com.dio.budgeting.domain.TransactionRepository;
+import org.springframework.stereotype.Service;
 
+@Service
 public class PersistTransactionUseCase {
     private final TransactionRepository transactionRepository;
 
