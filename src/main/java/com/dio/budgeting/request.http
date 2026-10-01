@@ -1,0 +1,10 @@
+### Enviar áudio
+POST http://localhost:8080/api/audio
+Content-Type: multipart/form-data; boundary=boundary
+
+--boundary
+Content-Disposition: form-data; name="file"; filename="recording-1.m4a"
+Content-Type: audio/mpeg
+
+< C:/projetos/DIO/DIO-CI&T/desafio final/budgeting/src/test/resources/audio/recording-1.m4a
+--boundary--
