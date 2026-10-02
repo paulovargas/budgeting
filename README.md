@@ -32,7 +32,7 @@ Versões declaradas nos arquivos do projeto:
 | Transcrição | OpenAI `whisper-1`, idioma português |
 | Síntese de voz | OpenAI `gpt-4o-mini-tts`, voz `nova`, MP3 |
 
-O projeto utiliza uma versão milestone do Spring AI. Esta documentação descreve o código atual; a execução completa ainda precisa ser validada no ambiente de entrega.
+O projeto utiliza uma versão milestone do Spring AI. Em 02/10/2026, o fluxo completo foi validado localmente com MySQL e chamadas reais à OpenAI: transcrição, Tool Calling para criação e consulta, persistência e resposta em MP3.
 
 ## Organização do código
 
@@ -55,7 +55,7 @@ src/test/
 └── resources/audio/              # Áudios de exemplo
 ```
 
-REST e Tool Calling compartilham os casos de uso `PersistTransactionUseCase` e `ListTransactionsByCategoryUseCase`. Atualmente, a orquestração do fluxo de voz está no `TransactionController`.
+REST e Tool Calling compartilham os casos de uso `PersistTransactionUseCase` e `ListTransactionsByCategoryUseCase`. `AudioOperations` concentra transcrição, interpretação e síntese; o `TransactionController` configura o `ChatClient` financeiro e monta a resposta HTTP.
 
 ## Como executar
 
@@ -114,7 +114,7 @@ O Spring Boot possui integração de desenvolvimento com Docker Compose para obt
 
 | Configuração | Valor local |
 | --- | --- |
-| Host / porta externa | `localhost:3308` |
+| Host / porta externa | `localhost:3307` |
 | Banco | `transaction` |
 | Usuário / senha | `app` / `app` |
 | Volume | `transaction_data` |
@@ -182,7 +182,7 @@ curl --fail-with-body -X POST http://localhost:8080/transactions/ai \
 
 Após uma resposta HTTP bem-sucedida, reproduza `resposta.mp3` e consulte `/transactions/GROCERIES` para verificar a operação no banco. Para consultar por voz, grave outro áudio, como “Quais são meus gastos de mercado?”, e envie para a mesma rota. Se houver erro HTTP, o arquivo de saída pode conter uma resposta de erro em vez de áudio.
 
-O fluxo financeiro completo ainda não foi validado nesta análise. Não reenvie automaticamente um comando de criação após falha de síntese: a transação pode já ter sido salva, e ainda não há idempotência.
+O fluxo foi validado com `recording-1.m4a`: a API transcreveu o comando, criou uma transação PHARMA de R$ 80,00, confirmou a persistência e devolveu MP3. Uma consulta por voz listou os gastos de farmácia sem criar nova transação. Não reenvie automaticamente um comando de criação após falha de síntese: a transação pode já ter sido salva, e ainda não há idempotência.
 
 ## Testes automatizados
 
@@ -208,13 +208,13 @@ No Linux/macOS: `./gradlew test`. Os relatórios ficam em `build/reports/tests/t
 
 Os testes atuais incluem carregamento do contexto, chat, transcrição dos áudios de exemplo, geração de fala e Tool Calling com operações matemáticas. Os testes de integração com OpenAI são condicionados à presença de `OPENAI_API_KEY`; com a chave definida, podem fazer chamadas reais e gerar custos. O teste de contexto não possui essa condição e depende da configuração dos modelos e do banco.
 
-Há testes locais de valores monetários, UUID, validações, respostas de erro HTTP e falha de síntese após uma operação simulada. Eles usam mocks dos modelos, sem chamadas externas. A seleção real de ferramentas pelo modelo e o fluxo financeiro completo ainda precisam de validação. O teste matemático de Tool Calling não comprova criação ou consulta financeira. Há um relatório anterior de TTS aprovado em 01/10/2026; ele comprova apenas aquela execução.
+Há testes locais de valores monetários, UUID, validações, respostas de erro HTTP e falha de síntese após uma operação simulada. Eles usam mocks dos modelos, sem chamadas externas. Em 02/10/2026, `InputValidationTest` e `TransactionOutputTest` totalizaram 14 testes sem falhas. A seleção real das ferramentas financeiras também foi validada manualmente: criação por voz, consulta por categoria e resposta em MP3. O teste matemático de Tool Calling continua sendo apenas uma verificação isolada da infraestrutura.
 
 ## Validações e erros
 
 - Transações exigem descrição não vazia com até 255 caracteres, categoria válida e valor positivo em centavos. As regras são aplicadas no caso de uso, tanto para REST quanto para ferramentas de IA.
 - O áudio deve ser não vazio e ter até 10 MB. Extensões aceitas: mp3, mp4, mpeg, mpga, m4a, wav e webm. A extensão não comprova o conteúdo; a decodificação é feita pelo provedor.
-- Requisições inválidas retornam HTTP 400; arquivos muito grandes, 413; formatos não suportados, 415; falhas de transcrição, interpretação ou síntese, 502.
+- Requisições inválidas retornam HTTP 400; métodos não suportados, 405; respostas incompatíveis com `Accept`, 406; arquivos muito grandes, 413; formatos não suportados, 415; falhas de transcrição, interpretação ou síntese, 502.
 - Erros retornam JSON com `status`, `code`, `message` e `transactionMayHaveBeenSaved`, inclusive nos endpoints que retornam áudio quando bem-sucedidos.
 
 Exemplo de erro de validação:
@@ -227,24 +227,22 @@ Se houver falha depois de iniciar a interpretação ou na geração de voz, `tra
 
 ## Melhoria para a entrega
 
-Uma melhoria funcional já implementada é a validação compartilhada de entradas e a padronização de erros: transações inválidas são rejeitadas antes da persistência, áudios inválidos não são enviados ao provedor e falhas de geração de voz orientam a consulta antes de reenviar. Há testes locais para esses comportamentos; a demonstração após reiniciar a aplicação ainda está pendente. Esta melhoria pode ser usada na entrega, caso seja a escolhida.
+A melhoria escolhida para a entrega é a validação compartilhada de entradas e a padronização de erros. Transações inválidas são rejeitadas antes da persistência, áudios inválidos não são enviados ao provedor, prompts e textos vazios retornam 400 e métodos incorretos retornam 405 com o cabeçalho `Allow`. Valores fracionários em centavos são rejeitados sem truncamento. Quando uma falha pode ocorrer depois da execução de uma ferramenta, a resposta informa `transactionMayHaveBeenSaved: true` para orientar a consulta antes de qualquer reenvio.
 
-A proposta atual é auditoria mínima: registrar data/hora de criação e canal de origem (`REST` ou `VOICE`) nas transações e exibir esses metadados na consulta. Ela depende de implementação e validação. Validações antes de salvar ou novas consultas financeiras também são alternativas compatíveis com o desafio.
-
-Após escolher e implementar a melhoria, atualizar esta seção com o problema resolvido, o comportamento final, exemplos e os resultados dos testes. Autenticação, storage de áudio, integrações externas e MCP Server são propostas posteriores e opcionais.
+A melhoria foi comprovada por testes locais e por requisições reais após reiniciar a aplicação. Auditoria com data/hora e canal de origem permanece como evolução opcional, assim como autenticação, armazenamento de áudio, integrações externas e MCP Server.
 
 ## Pendências conhecidas
 
 - Revisar a separação entre orquestração de voz, configuração do ChatClient e adaptadores de ferramentas. O tratamento das operações de áudio foi extraído para `AudioOperations` durante a implementação das validações.
-- Testar criação, consulta e resposta em áudio de ponta a ponta.
+- Centralizar também a configuração do `ChatClient` financeiro fora do controller e revisar os nomes legados `TrasactionRequest` e `/sinthesize` sem quebrar compatibilidade.
 
 Na análise inicial, o Java ativo era 11, a chave estava ausente, o download do Gradle foi bloqueado por restrição de rede e o acesso ao Docker foi negado. Essas são condições daquele ambiente de análise, não requisitos do projeto.
 
 ## Aprendizado durante o desafio
 
-O projeto permite estudar como conectar reconhecimento de fala, modelos de linguagem e Tool Calling aos casos de uso de uma aplicação com persistência. A análise inicial mostrou a importância de verificar unidades monetárias, contratos das ferramentas e resultados no banco, além de ouvir a resposta gerada.
+O principal aprendizado foi que integrar um modelo não encerra o trabalho no retorno da IA: é necessário validar o contrato HTTP, a unidade monetária, a persistência e o efeito real das ferramentas. Um valor recebido como decimal em um campo de centavos chegou a ser convertido silenciosamente; a correção passou a exigir um inteiro exato antes do caso de uso.
 
-Ao concluir a implementação, registrar aqui os aprendizados pessoais: por que a melhoria foi escolhida, quais dificuldades surgiram, como foram resolvidas e quais testes demonstram o resultado.
+Também ficou clara a diferença entre falhar antes e depois de uma ferramenta executar. Uma falha de síntese pode acontecer depois que a transação já foi salva, por isso a API informa essa possibilidade e orienta consultar antes de reenviar. Os testes combinaram mocks para cenários determinísticos com validação real de transcrição, Tool Calling, MySQL e áudio.
 
 ## Referências e entrega
 
