@@ -38,3 +38,9 @@ out/
 
 ### Planejamento local ###
 IMPLEMENTAÇÃO_DE_MELHORIAS.md
+
+### Artefatos locais dos testes manuais ###
+/manual-test-results/**/*.py
+/manual-test-results/**/__pycache__/
+/manual-test-results/**/*.mp3
+/manual-test-results/**/http-results.json

@@ -186,6 +186,14 @@ O fluxo financeiro completo ainda não foi validado nesta análise. Não reenvie
 
 ## Testes automatizados
 
+Para executar somente os testes locais, sem banco ou chamadas à OpenAI:
+
+```powershell
+.\gradlew.bat test --tests com.dio.budgeting.TransactionOutputTest --tests com.dio.budgeting.InputValidationTest
+```
+
+Para executar todos os testes, incluindo integrações habilitadas no ambiente:
+
 ```powershell
 .\gradlew.bat test
 ```
@@ -200,11 +208,26 @@ No Linux/macOS: `./gradlew test`. Os relatórios ficam em `build/reports/tests/t
 
 Os testes atuais incluem carregamento do contexto, chat, transcrição dos áudios de exemplo, geração de fala e Tool Calling com operações matemáticas. Os testes de integração com OpenAI são condicionados à presença de `OPENAI_API_KEY`; com a chave definida, podem fazer chamadas reais e gerar custos. O teste de contexto não possui essa condição e depende da configuração dos modelos e do banco.
 
-Ainda não há uma suíte isolada dos serviços externos, nem cobertura automatizada do fluxo financeiro completo. O teste matemático de Tool Calling não comprova criação ou consulta financeira. Há um relatório anterior de TTS aprovado em 01/10/2026; ele comprova apenas aquela execução.
+Há testes locais de valores monetários, UUID, validações, respostas de erro HTTP e falha de síntese após uma operação simulada. Eles usam mocks dos modelos, sem chamadas externas. A seleção real de ferramentas pelo modelo e o fluxo financeiro completo ainda precisam de validação. O teste matemático de Tool Calling não comprova criação ou consulta financeira. Há um relatório anterior de TTS aprovado em 01/10/2026; ele comprova apenas aquela execução.
+
+## Validações e erros
+
+- Transações exigem descrição não vazia com até 255 caracteres, categoria válida e valor positivo em centavos. As regras são aplicadas no caso de uso, tanto para REST quanto para ferramentas de IA.
+- O áudio deve ser não vazio e ter até 10 MB. Extensões aceitas: mp3, mp4, mpeg, mpga, m4a, wav e webm. A extensão não comprova o conteúdo; a decodificação é feita pelo provedor.
+- Requisições inválidas retornam HTTP 400; arquivos muito grandes, 413; formatos não suportados, 415; falhas de transcrição, interpretação ou síntese, 502.
+- Erros retornam JSON com `status`, `code`, `message` e `transactionMayHaveBeenSaved`, inclusive nos endpoints que retornam áudio quando bem-sucedidos.
+
+Exemplo de erro de validação:
+
+```json
+{"status":400,"code":"INVALID_INPUT","message":"O valor deve ser positivo e informado em centavos.","transactionMayHaveBeenSaved":false}
+```
+
+Se houver falha depois de iniciar a interpretação ou na geração de voz, `transactionMayHaveBeenSaved` será `true`. Isso indica possibilidade, não confirmação de persistência. Consulte as transações antes de reenviar: não há retry automático nem idempotência nesta etapa.
 
 ## Melhoria para a entrega
 
-**Nenhuma melhoria funcional foi escolhida definitivamente ou implementada nesta etapa.** A documentação inicial organiza o uso do projeto e suas limitações, mas a evolução funcional da entrega ainda precisa ser concluída e testada.
+Uma melhoria funcional já implementada é a validação compartilhada de entradas e a padronização de erros: transações inválidas são rejeitadas antes da persistência, áudios inválidos não são enviados ao provedor e falhas de geração de voz orientam a consulta antes de reenviar. Há testes locais para esses comportamentos; a demonstração após reiniciar a aplicação ainda está pendente. Esta melhoria pode ser usada na entrega, caso seja a escolhida.
 
 A proposta atual é auditoria mínima: registrar data/hora de criação e canal de origem (`REST` ou `VOICE`) nas transações e exibir esses metadados na consulta. Ela depende de implementação e validação. Validações antes de salvar ou novas consultas financeiras também são alternativas compatíveis com o desafio.
 
@@ -212,8 +235,7 @@ Após escolher e implementar a melhoria, atualizar esta seção com o problema r
 
 ## Pendências conhecidas
 
-- Validar dados financeiros e arquivos de áudio e padronizar erros.
-- Extrair a orquestração de voz do controller para um serviço dedicado.
+- Revisar a separação entre orquestração de voz, configuração do ChatClient e adaptadores de ferramentas. O tratamento das operações de áudio foi extraído para `AudioOperations` durante a implementação das validações.
 - Testar criação, consulta e resposta em áudio de ponta a ponta.
 
 Na análise inicial, o Java ativo era 11, a chave estava ausente, o download do Gradle foi bloqueado por restrição de rede e o acesso ao Docker foi negado. Essas são condições daquele ambiente de análise, não requisitos do projeto.

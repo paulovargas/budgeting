@@ -8,20 +8,20 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.awt.*;
+import com.dio.budgeting.infrastructure.http.AudioOperations;
 
 @RestController
 @RequestMapping("/api")
 public class TranscriptionController {
-    private final TranscriptionModel transcriptionModel;
+    private final AudioOperations audioOperations;
 
-    public TranscriptionController(TranscriptionModel transcriptionModel) {
-        this.transcriptionModel = transcriptionModel;
+    public TranscriptionController(AudioOperations audioOperations) {
+        this.audioOperations = audioOperations;
     }
 
     @PostMapping(value = "/transcribe", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     String transcribe(@RequestParam("file") MultipartFile file){
-        var resource = file.getResource();
-        return transcriptionModel.transcribe(resource);
+
+        return audioOperations.transcribe(file);
     }
 }

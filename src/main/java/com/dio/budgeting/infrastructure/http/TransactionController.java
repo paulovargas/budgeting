@@ -25,24 +25,24 @@ public class TransactionController {
     private final PersistTransactionUseCase persistTransactionUseCase;
     private final ListTransactionsByCategoryUseCase listTransactionsByCategoryUseCase;
 
-    private final TranscriptionModel transcriptionModel;
+    private final AudioOperations audioOperations;
     private final ChatClient chatClient;
-    private final TextToSpeechModel textToSpeechModel;
+
 
     public TransactionController(PersistTransactionUseCase persistTransactionUseCase,
                                  ListTransactionsByCategoryUseCase listTransactionsByCategoryUseCase,
                                  TranscriptionModel transcriptionModel,
                                  @Value("classpath:prompts/system-message.st") Resource systemPrompt,
                                  ChatClient.Builder chatClientBuilder,
-                                 TextToSpeechModel textToSpeechModel) throws IOException {
+                                 TextToSpeechModel textToSpeechModel, AudioOperations audioOperations) throws IOException {
         this.persistTransactionUseCase = persistTransactionUseCase;
         this.listTransactionsByCategoryUseCase = listTransactionsByCategoryUseCase;
-        this.transcriptionModel = transcriptionModel;
+        this.audioOperations = audioOperations;
         this.chatClient = chatClientBuilder
                 .defaultSystem(systemPrompt.getContentAsString(StandardCharsets.UTF_8))
                 .defaultTools(persistTransactionUseCase, listTransactionsByCategoryUseCase)
                 .build();
-        this.textToSpeechModel = textToSpeechModel;
+
     }
 
     @PostMapping
@@ -60,10 +60,7 @@ public class TransactionController {
 
     @PostMapping(value = "/ai", consumes = MediaType.MULTIPART_FORM_DATA_VALUE, produces = "audio/mp3")
     ResponseEntity transcribe(@RequestParam("file")MultipartFile file){
-        var userMessage = transcriptionModel.transcribe(file.getResource());
-        var result = chatClient.prompt().user(userMessage).call().content();
-
-        byte[] audio = textToSpeechModel.call(result);
+        byte[] audio = audioOperations.process(file, chatClient);
         var resource = new ByteArrayResource(audio);
 
         return ResponseEntity.ok()

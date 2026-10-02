@@ -1,7 +1,7 @@
 package com.dio.budgeting;
 
 
-import org.springframework.ai.audio.tts.TextToSpeechModel;
+import com.dio.budgeting.infrastructure.http.AudioOperations;
 import org.springframework.core.io.ByteArrayResource;
 import org.springframework.core.io.Resource;
 import org.springframework.http.ContentDisposition;
@@ -15,15 +15,15 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/api")
 public class TextToSpeechController {
-    private final TextToSpeechModel textToSpeechModel;
+    private final AudioOperations audioOperations;
 
-    public TextToSpeechController(TextToSpeechModel textToSpeechModel){
-        this.textToSpeechModel = textToSpeechModel;
+    public TextToSpeechController(AudioOperations audioOperations){
+        this.audioOperations = audioOperations;
     }
 
     @PostMapping(value = "/sinthesize", produces = "audio/mp3")
     public ResponseEntity<Resource> sinthesize(@RequestBody SynthesizeRequest request){
-        byte[] audio = textToSpeechModel.call(request.text());
+        byte[] audio = audioOperations.synthesize(request.text(), false);
 
         var resource = new ByteArrayResource(audio);
 
