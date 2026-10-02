@@ -19,7 +19,7 @@ public class ListTransactionsByCategoryUseCase {
         this.transactionRepository = transactionRepository;
     }
 
-    @Tool(name = "List-transaction-by-category", description = "Persiste uma nova transação financeira")
+    @Tool(name = "List-transaction-by-category", description = "Consulta as transações financeiras de uma categoria")
     public List<TransactionOutput> execute(@ToolParam(description = "Categoria de uma transação") Category category){
         return transactionRepository.findAllByCategory(category).stream().map(TransactionOutput::from).toList();
     }

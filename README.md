@@ -88,7 +88,7 @@ Inicie a aplicação:
 .\gradlew.bat bootRun
 ```
 
-**Limitação conhecida no Windows:** o script atual `gradlew.bat` falha quando o caminho contém `&`, como em `DIO-CI&T`. Até corrigir o script, utilize um checkout em um caminho sem esse caractere ou execute o wrapper diretamente:
+O `gradlew.bat` protege os caminhos com aspas e foi validado na pasta com `&` usando Java 25. Como alternativa, o wrapper pode ser executado diretamente:
 
 ```powershell
 & "$env:JAVA_HOME\bin\java.exe" -jar .\gradle\wrapper\gradle-wrapper.jar bootRun
@@ -114,7 +114,7 @@ O Spring Boot possui integração de desenvolvimento com Docker Compose para obt
 
 | Configuração | Valor local |
 | --- | --- |
-| Host / porta externa | `localhost:3307` |
+| Host / porta externa | `localhost:3308` |
 | Banco | `transaction` |
 | Usuário / senha | `app` / `app` |
 | Volume | `transaction_data` |
@@ -160,7 +160,7 @@ Invoke-RestMethod -Uri 'http://localhost:8080/transactions/GROCERIES'
 
 Confirme que a criação retorna HTTP 201 e que o registro aparece na consulta. Reinicie a aplicação e consulte novamente para verificar a persistência.
 
-**Erro conhecido:** a resposta atual não converte centavos para reais: `amount: 8000` resulta em `value: 8000.0`, quando deveria resultar em `80.00`. O campo `id` também retorna a representação do record `TransactionId`, em vez de apenas o UUID. Essas correções estão pendentes.
+A resposta converte centavos para reais com `BigDecimal`: `amount: 8000` resulta em `value: 80.00`. O campo `id` retorna apenas o UUID. A persistência mantém os valores originais em centavos; não é necessária migração de dados para esta correção.
 
 ### Testar o fluxo de voz
 
@@ -212,11 +212,6 @@ Após escolher e implementar a melhoria, atualizar esta seção com o problema r
 
 ## Pendências conhecidas
 
-- Corrigir o wrapper Windows para caminhos com `&`.
-- Corrigir conversão monetária e formato do identificador.
-- Corrigir a descrição da ferramenta de consulta, que atualmente descreve persistência.
-- Remover o `=` adicional no prompt de transcrição e ler o prompt do sistema explicitamente em UTF-8.
-- Atualizar `request.http`, que aponta para uma rota inexistente (`/api/audio`).
 - Validar dados financeiros e arquivos de áudio e padronizar erros.
 - Extrair a orquestração de voz do controller para um serviço dedicado.
 - Testar criação, consulta e resposta em áudio de ponta a ponta.

@@ -16,7 +16,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
-import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 
 @RestController
@@ -39,7 +39,7 @@ public class TransactionController {
         this.listTransactionsByCategoryUseCase = listTransactionsByCategoryUseCase;
         this.transcriptionModel = transcriptionModel;
         this.chatClient = chatClientBuilder
-                .defaultSystem(systemPrompt.getContentAsString(Charset.defaultCharset()))
+                .defaultSystem(systemPrompt.getContentAsString(StandardCharsets.UTF_8))
                 .defaultTools(persistTransactionUseCase, listTransactionsByCategoryUseCase)
                 .build();
         this.textToSpeechModel = textToSpeechModel;
