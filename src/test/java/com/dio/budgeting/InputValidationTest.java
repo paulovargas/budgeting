@@ -9,6 +9,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.ai.audio.transcription.TranscriptionModel;
 import org.springframework.ai.audio.tts.TextToSpeechModel;
 import org.springframework.ai.chat.client.ChatClient;
+import org.springframework.ai.openai.OpenAiChatModel;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.test.web.servlet.MockMvc;
@@ -20,6 +21,27 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.setup.MockMvcBuilders.standaloneSetup;
 
 class InputValidationTest {
+    @Test
+    void rejectsMissingOrBlankPromptsBeforeCallingModels() throws Exception {
+        var model = mock(OpenAiChatModel.class);
+        var client = mock(ChatClient.class);
+        var mvc = standaloneSetup(new ChatModelController(model), new ChatClientController(client))
+                .setControllerAdvice(new ApiExceptionHandler()).build();
+        for (var path : new String[]{"/api/chat", "/api/chat-model"}) {
+            mvc.perform(get(path)).andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.transactionMayHaveBeenSaved").value(false));
+            for (var prompt : new String[]{"", "   "}) {
+                mvc.perform(get(path).param("prompt", prompt)).andExpect(status().isBadRequest())
+                        .andExpect(jsonPath("$.code").value("INVALID_INPUT"));
+            }
+        }
+        verifyNoInteractions(model, client);
+        when(model.call("Teste")).thenReturn("OK");
+        mvc.perform(get("/api/chat-model").param("prompt", "Teste"))
+                .andExpect(status().isOk()).andExpect(content().string("OK"));
+        verify(model).call("Teste");
+    }
+
     @Test
     void doesNotRetryACompletedToolWhenSpeechFails() {
         var transcription = mock(TranscriptionModel.class);
@@ -94,6 +116,10 @@ class InputValidationTest {
         var operations = new AudioOperations(mock(TranscriptionModel.class), mock(TextToSpeechModel.class));
         MockMvc mvc = standaloneSetup(new TranscriptionController(operations), new TextToSpeechController(operations))
                 .setControllerAdvice(new ApiExceptionHandler()).build();
+        mvc.perform(get("/api/sinthesize"))
+                .andExpect(status().isMethodNotAllowed()).andExpect(header().string("Allow", "POST"))
+                .andExpect(jsonPath("$.code").value("METHOD_NOT_ALLOWED"))
+                .andExpect(jsonPath("$.transactionMayHaveBeenSaved").value(false));
         mvc.perform(multipart("/api/transcribe").file(new MockMultipartFile("file", new byte[0])))
                 .andExpect(status().isBadRequest()).andExpect(jsonPath("$.code").value("INVALID_INPUT"));
         mvc.perform(multipart("/api/transcribe"))
@@ -118,11 +144,25 @@ class InputValidationTest {
                 mock(ChatClient.Builder.class, RETURNS_DEEP_STUBS), speech,
                 new AudioOperations(transcription, speech));
         var mvc = standaloneSetup(controller).setControllerAdvice(new ApiExceptionHandler()).build();
+        mvc.perform(get("/transactions"))
+                .andExpect(status().isMethodNotAllowed()).andExpect(header().string("Allow", "POST"))
+                .andExpect(jsonPath("$.transactionMayHaveBeenSaved").value(false));
+        for (var amount : new String[]{"12.34", "0.99", "9223372036854775808", "null"}) {
+            mvc.perform(post("/transactions").contentType("application/json")
+                    .content("{\"description\":\"Compra\",\"amount\":" + amount + ",\"category\":\"AUTO\"}"))
+                    .andExpect(status().isBadRequest()).andExpect(jsonPath("$.code").value("INVALID_INPUT"))
+                    .andExpect(jsonPath("$.transactionMayHaveBeenSaved").value(false));
+        }
         mvc.perform(post("/transactions").contentType("application/json")
                 .content("{\"description\":\"Compra\",\"amount\":0,\"category\":\"AUTO\"}"))
                 .andExpect(status().isBadRequest()).andExpect(jsonPath("$.code").value("INVALID_INPUT"));
         mvc.perform(get("/transactions/INVALID"))
                 .andExpect(status().isBadRequest()).andExpect(jsonPath("$.code").value("INVALID_REQUEST"));
         verifyNoInteractions(repository);
+        when(repository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+        mvc.perform(post("/transactions").contentType("application/json")
+                .content("{\"description\":\"Compra\",\"amount\":1234,\"category\":\"AUTO\"}"))
+                .andExpect(status().isCreated()).andExpect(jsonPath("$.value").value(12.34));
+        verify(repository, times(1)).save(any());
     }
 }

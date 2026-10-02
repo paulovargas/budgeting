@@ -1,5 +1,30 @@
 # Testes manuais — budgeting — 02/10/2026
 
+## Atualização após as correções — 02/10/2026
+
+As falhas descritas na execução original abaixo foram corrigidas no código:
+
+- Método HTTP não suportado: resposta 405 `METHOD_NOT_ALLOWED`, preservando `Allow` e com `transactionMayHaveBeenSaved: false`.
+- Valor fracionário: o DTO REST recebe `BigDecimal` e usa `longValueExact()` antes do caso de uso. Frações de centavo e valores fora do intervalo de long retornam 400, sem persistência. Valores inteiros continuam aceitos; `1234` retorna R$ 12,34.
+- Prompt: `/api/chat` e `/api/chat-model` rejeitam ausência, vazio e espaços com 400 `INVALID_INPUT` antes de chamar os modelos.
+
+Validação **automatizada local**, distinta da execução manual original: `InputValidationTest` e `TransactionOutputTest`, 14 testes, zero falhas/erros/skips. Gradle `BUILD SUCCESSFUL` usando JDK 25. Inclui MockMvc com os controladores reais e modelos/repositório simulados: 405 + Allow em ambas as rotas, frações/overflow/null sem salvar, valor inteiro preservado, prompts inválidos sem chamada ao modelo e prompt válido encaminhado. `git diff --check` sem erros.
+
+A repetição manual no servidor após reinício está **pendente**: o Computer Use não conseguiu conectar ao canal nativo do Windows nesta etapa. Não houve reinício da aplicação, chamada real à OpenAI nem criação de novos registros nesta etapa de correção. As respostas e falhas na matriz abaixo pertencem à versão anterior e foram preservadas como evidência histórica.
+
+Nova verificação às 20:07 (UTC−03): porta 8080 ainda atendida pelo processo 1176. GET `/api/sinthesize` continuou retornando 500 `INTERNAL_ERROR`, indicando que o servidor ainda não carregou a correção de 405. POST na mesma rota com `{"text":""}` e `Accept: audio/mp3` retornou 400 `INVALID_INPUT`, JSON, `transactionMayHaveBeenSaved: false`. Evidência local em `before-restart/http-results.json`. O teste de valor fracionário não foi reenviado nessa versão para evitar criar outro registro truncado. Reinício no IntelliJ continua pendente; o canal nativo do Computer Use permaneceu indisponível.
+
+### Revalidação após reinício — 02/10/2026, 20:14 (UTC−03)
+
+A aplicação reiniciada passou nos casos corrigidos, por HTTP real em `localhost:8080`:
+
+- GET `/api/sinthesize`: 405 `METHOD_NOT_ALLOWED`, `Allow: POST`, flag false.
+- GET `/transactions`: 405 `METHOD_NOT_ALLOWED`, `Allow: POST`, flag false.
+- POST `/api/sinthesize` com `{"text":""}`: 400 `INVALID_INPUT`, flag false.
+- GET `/api/chat?prompt=` e `/api/chat-model?prompt=`: 400 `INVALID_INPUT`, flag false.
+- POST `/transactions` com `amount: 12.34`: 400 `INVALID_INPUT`; consulta subsequente confirmou que a descrição `NAO-DEVE-SALVAR-20261002` não foi persistida.
+- Controle positivo com `amount: 1234`: 201, valor R$ 12,34; persistência confirmada em AUTO, UUID `6a4dfe0f-7fb9-475f-b662-61fa9e7ff587`, descrição `VALIDO-RETESTE-20261002`.
+
 Horários: America/Sao_Paulo (UTC−03:00). Aplicação já iniciada pelo usuário no IntelliJ, em http://localhost:8080. Não houve alteração do código da aplicação nesta sessão. As alterações locais preexistentes foram preservadas.
 
 ## Execução e evidências

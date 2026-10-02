@@ -1,7 +1,6 @@
 package com.dio.budgeting;
 
 import org.springframework.ai.chat.client.ChatClient;
-import org.springframework.ai.openai.OpenAiChatModel;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -17,6 +16,9 @@ public class ChatClientController {
 
     @GetMapping("/chat")
     String chat(String prompt){
+        if (prompt == null || prompt.isBlank()) {
+            throw new IllegalArgumentException("O prompt é obrigatório.");
+        }
         return this.chatClient.prompt().user(prompt).call().content();
     }
 }

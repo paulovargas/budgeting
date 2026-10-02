@@ -16,6 +16,9 @@ public class ChatModelController {
 
     @GetMapping("/chat-model")
     String chat(String prompt){
+        if (prompt == null || prompt.isBlank()) {
+            throw new IllegalArgumentException("O prompt é obrigatório.");
+        }
         return this.openAiChatModel.call(prompt);
     }
 }
