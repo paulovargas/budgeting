@@ -282,4 +282,4 @@ Também ficou clara a diferença entre falhar antes e depois de uma ferramenta e
 - [Trilha Spring Boot da DIO](https://github.com/digitalinnovationone/dio-spring-boot-learning-track)
 - [Projeto base Spring AI — Budgeting](https://github.com/digitalinnovationone/dio-spring-boot-learning-track/blob/main/05-spring-ai/README.md)
 
-Para entregar, disponibilize sua versão em um repositório próprio ou fork no GitHub, com este README atualizado, uma melhoria concluída e evidências dos testes. Revise os arquivos antes de publicar para evitar incluir chaves e outros dados privados.
+Este repositório é a minha entrega para o desafio. Escolhi melhorar as validações e o tratamento de erros porque, durante os testes, encontrei requisições inválidas retornando HTTP 500 e um valor decimal sendo truncado antes de ser salvo. Corrigi esses comportamentos, repeti os testes e registrei os resultados neste README e no relatório de testes manuais. A chave da OpenAI fica somente na variável de ambiente `OPENAI_API_KEY`.
