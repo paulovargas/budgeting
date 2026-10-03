@@ -1,6 +1,6 @@
 # Budgeting — API financeira com comandos de voz
 
-Projeto do desafio DIO **“Desenvolvendo sua API Inteligente com Reconhecimento de Fala e Spring Boot”**. A aplicação recebe comandos de voz para criar ou consultar transações financeiras, integra modelos de IA com funções reais da aplicação e persiste os dados em MySQL.
+Projeto do bootcamp DIO **CI&T - Java AI Copilot**, desenvolvido para o desafio **“Desenvolvendo sua API Inteligente com Reconhecimento de Fala e Spring Boot”**. A aplicação recebe comandos de voz para criar ou consultar transações financeiras, integra modelos de IA com funções reais da aplicação e persiste os dados em MySQL.
 
 ## Fluxo principal
 
@@ -246,6 +246,7 @@ Também ficou clara a diferença entre falhar antes e depois de uma ferramenta e
 
 ## Referências e entrega
 
+- [Bootcamp CI&T - Java AI Copilot](https://www.dio.me/bootcamp/ci-t-java-ai-copilot)
 - [Trilha Spring Boot da DIO](https://github.com/digitalinnovationone/dio-spring-boot-learning-track)
 - [Projeto base Spring AI — Budgeting](https://github.com/digitalinnovationone/dio-spring-boot-learning-track/blob/main/05-spring-ai/README.md)
 
