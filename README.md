@@ -225,11 +225,43 @@ Exemplo de erro de validação:
 
 Se houver falha depois de iniciar a interpretação ou na geração de voz, `transactionMayHaveBeenSaved` será `true`. Isso indica possibilidade, não confirmação de persistência. Consulte as transações antes de reenviar: não há retry automático nem idempotência nesta etapa.
 
-## Melhoria para a entrega
+## Melhoria implementada: Validação e Padronização de Erros
 
-A melhoria escolhida para a entrega é a validação compartilhada de entradas e a padronização de erros. Transações inválidas são rejeitadas antes da persistência, áudios inválidos não são enviados ao provedor, prompts e textos vazios retornam 400 e métodos incorretos retornam 405 com o cabeçalho `Allow`. Valores fracionários em centavos são rejeitados sem truncamento. Quando uma falha pode ocorrer depois da execução de uma ferramenta, a resposta informa `transactionMayHaveBeenSaved: true` para orientar a consulta antes de qualquer reenvio.
+A melhoria escolhida para o desafio foi tornar as entradas e falhas da API previsíveis e seguras. O projeto-base permitia que alguns dados inválidos chegassem às integrações ou fossem convertidos de forma silenciosa, enquanto exceções diferentes podiam terminar em uma resposta genérica HTTP 500.
 
-A melhoria foi comprovada por testes locais e por requisições reais após reiniciar a aplicação. Auditoria com data/hora e canal de origem permanece como evolução opcional, assim como autenticação, armazenamento de áudio, integrações externas e MCP Server.
+| Problema observado | Comportamento implementado |
+| --- | --- |
+| Descrição vazia, categoria ausente ou valor não positivo | HTTP 400 antes da persistência |
+| Valor fracionário em um campo de centavos, como `12.34` | HTTP 400, sem truncar para `12` e sem salvar |
+| Prompt ou texto para síntese vazio | HTTP 400 antes de chamar o modelo |
+| Áudio vazio, maior que 10 MB ou com extensão não aceita | HTTP 400, 413 ou 415 antes de chamar o provedor |
+| Método HTTP incorreto | HTTP 405 com cabeçalho `Allow`, em vez de 500 |
+| Formato de resposta incompatível com o cabeçalho `Accept` | HTTP 406 |
+| Falha de transcrição, interpretação ou síntese | HTTP 502 com código estável e mensagem controlada |
+
+As regras financeiras ficam no caso de uso compartilhado por REST e Tool Calling. A validação específica de áudio fica em `AudioValidation`, a orquestração em `AudioOperations` e a conversão das exceções para respostas HTTP em `ApiExceptionHandler`.
+
+Todas as respostas de erro usam o mesmo contrato:
+
+```json
+{
+  "status": 400,
+  "code": "INVALID_INPUT",
+  "message": "O texto para síntese é obrigatório.",
+  "transactionMayHaveBeenSaved": false
+}
+```
+
+O campo `transactionMayHaveBeenSaved` trata uma particularidade do fluxo com Tool Calling. Se a interpretação ou a síntese falhar depois que uma ferramenta pode ter criado a transação, a API retorna `true` e orienta consultar os registros antes de reenviar o comando. Isso reduz o risco de duplicar um gasto; não há retry automático.
+
+### Evidências da melhoria
+
+- `InputValidationTest` e `TransactionOutputTest`: 14 testes locais, sem falhas, erros ou skips.
+- Revalidação real após reiniciar a aplicação: texto e prompts vazios retornaram 400; métodos incorretos, 405; valor fracionário, 400 sem persistência; valor inteiro válido continuou retornando 201.
+- Fluxo completo validado com OpenAI e MySQL: criação por voz, consulta por voz sem gravação indevida e resposta em MP3.
+- Resultados detalhados em [Relatório de testes manuais](manual-test-results/2026-10-02/RELATORIO.md).
+
+Auditoria com data/hora e canal de origem permanece como evolução opcional, assim como autenticação, armazenamento de áudio, integrações externas e MCP Server.
 
 ## Pendências conhecidas
 
